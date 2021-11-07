@@ -61,6 +61,7 @@ class vector:
                 for i in range(len(sentence)):
                     word = sentence[i]
                     for j in range(max(0, i - 4), min(len(sentence), i + 5)):
+                        if i == j: continue
                         term_context[word][sentence[j]] += 1
         return term_context
 
