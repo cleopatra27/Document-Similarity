@@ -3,15 +3,13 @@ from collections import Counter, defaultdict
 from scipy import spatial
 
 
-class vector_embeddings:
+class vector:
 
     def __init__(self):
-        self.term_document_matrix = Counter()
         self.vocab = None
         self.matrix = {}
-        self.playl = Counter()
         self.cleaned_words = []
-        self.cleanesdffd_words = []
+        self.doc_freq = Counter()
         self.play_names = None
 
     def load_vocab_file(self):
@@ -27,6 +25,23 @@ class vector_embeddings:
     def clean(self, word):
         return ''.join([x for x in word.lower() if x.isalnum()])
 
+    def read_csv(self):
+        term_frequency = defaultdict(lambda: 0)
+        with open("ShakespearePlays_text.csv", "r") as f:
+            # load csv
+            reader = csv.reader(f, delimiter=";")
+            # loop through line in csv
+            for line in reader:
+                play_name = line[1]
+                if play_name not in self.play_names:
+                    continue
+                tokens = line[5].split()
+                for term in tokens:
+                    token = self.clean(term)
+                    if token in self.vocab:
+                        term_frequency[(token, play_name)] += 1
+        return term_frequency
+
     def term_context(self):
         term_context = defaultdict(lambda: defaultdict(lambda: 0))
         with open("ShakespearePlays_text.csv", "r") as f:
@@ -41,16 +56,33 @@ class vector_embeddings:
                 sentence = []
                 for term in tokens:
                     token = self.clean(term)
-                    sentence.append(token)
+                    if token in self.vocab:
+                        sentence.append(token)
                 for i in range(len(sentence)):
                     word = sentence[i]
                     for j in range(max(0, i - 4), min(len(sentence), i + 5)):
                         term_context[word][sentence[j]] += 1
         return term_context
 
-    def compute_word_similarity(self, words):
+    def cal_doc_freq(self, term_frequency):
+        values_per_key = {}
+        for k, v in term_frequency:
+            values_per_key.setdefault(k, set()).add(v)
+        counts = {k: len(v) for k, v in values_per_key.items()}
+        return counts
+
+    def idf(self):
+        t = self.read_csv()
+        counts = self.cal_doc_freq(t)
         tc = self.term_context()
-        print(len(tc))
+        for i in tc:
+            for j in tc[i].keys():
+                tc[i][j] = tc[i][j] * (1 / counts[j])
+        print(tc)
+        return tc
+
+    def compute_word_similarity(self, words):
+        tc = self.idf()
 
         def to_vec(w):
             vec = []
@@ -76,9 +108,10 @@ class vector_embeddings:
         return cosine_similarity
 
 
-v = vector_embeddings()
+v = vector()
 v.load_play_name_list()
 v.load_vocab_file()
+v.idf()
 v.compute_word_similarity([
     "romeo",
     "juliet",
